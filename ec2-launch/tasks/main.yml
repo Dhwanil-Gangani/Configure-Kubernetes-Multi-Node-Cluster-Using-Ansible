@@ -1,0 +1,20 @@
+---
+# tasks file for ec2-launch
+- name: "Provision Amazon EC2 K8s Cluster"
+  ec2:
+      key_name: "{{ aws_key }}"
+      instance_type: "{{ os_type  }}"
+      image: "{{ ami_id  }}"
+      wait: yes
+      group_id: "{{ security_gid }}"
+      count: "{{ ec2_count }}"
+      region: "{{ region_id  }}"
+      vpc_subnet_id: "{{ subnet_id }}"
+      state: present
+      assign_public_ip: yes
+      instance_tags:
+          Name: "{{ item }}"
+  loop: "{{ node_name }}"
+- name: "refresh inventory"
+  meta: refresh_inventory
+

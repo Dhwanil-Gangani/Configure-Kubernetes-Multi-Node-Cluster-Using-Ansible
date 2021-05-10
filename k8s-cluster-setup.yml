@@ -1,0 +1,4 @@
+- hosts: localhost
+  roles:
+  - name: "Provision Master and Slaves Nodes on Aws Cloud Using Ec2 Service."
+    role:  "k8s-cluster/ec2-launch"

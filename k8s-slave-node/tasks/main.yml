@@ -1,0 +1,82 @@
+---
+# tasks file for k8s-slave-node
+- name: "Installing docker"
+  package:
+     name: "docker"
+     state: present
+
+- name: "Enable The Service of Docker"
+  service:
+      name: docker
+      enabled: yes
+      state: started
+
+- name: "Configure yum Repository for K8S"
+  yum_repository:
+      name: "K8s_Repo"
+      description: "kubernetes repo to install kubectl,kubelet,kubeadm"
+      baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+      gpgcheck: yes
+      repo_gpgcheck: yes
+      enabled: yes
+      gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg
+              https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+- name: "Installing kubeadm, kubectl and kubelet"
+  yum:
+     name: "{{ item }}"
+     state: present
+     disable_excludes: kubernetes
+  loop: "{{ packages }}"
+
+- name: "Starting and Enabling the kubelet Services and docker Services"
+  service:
+      name: kubelet
+      state: started
+      enabled: yes
+
+- name: "Check cgroup Driver in docker"
+  shell: docker info | grep -i cgroup
+  register: driver_name
+
+- debug:
+     var: driver_name
+
+- name: "Changing Driver from cgroup to systemd in Docker"
+  copy:
+    content: |
+        {
+                "exec-opts": ["native.cgroupdriver=systemd"]
+        }
+    dest: /etc/docker/daemon.json
+  register: driver_output
+
+- name: "Restart Docker Service"
+  service:
+      name: docker
+      state: restarted
+  when: driver_output.changed == true
+
+- name: "Installing iproute-tc"
+  package:
+      name: iproute-tc
+      state: present
+
+- name: "Setting bridge-nf-call-iptables to 1"
+  shell: |
+        echo "1" > /proc/sys/net/bridge/bridge-nf-call-iptables
+        echo "1"  > /proc/sys/net/bridge/bridge-nf-call-ip6tables
+  changed_when: false
+
+- name: "Clearing Caches to Increase Ram"
+  shell: echo 3 > /proc/sys/vm/drop_caches
+
+- name: "Joining Slave to Master"
+  copy:
+     src: "{{ join_file_location }}{{ hostvars[inventory_hostname]['groups']['tag_Name_Master_Node'][0] }}/join.sh"
+     dest: "{{ dest_join_location }}/join.sh"
+     mode: "u+rwx"
+
+- name: "Running Join File"
+  shell: ./join.sh
+

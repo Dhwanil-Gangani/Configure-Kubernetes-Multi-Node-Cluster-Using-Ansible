@@ -1,0 +1,15 @@
+---
+# vars file for ec2-launch
+
+aws_key: "test108"
+ami_id: "ami-03ca998611da0fe12"
+os_type: "t2.micro"
+security_gid: "sg-61a15016"
+subnet_id: "subnet-2ef23366"
+region_id: "ap-southeast-1"
+ec2_count: "1"
+node_name:
+      - "Master_Node"
+      - "Slave_Node"
+      - "Slave_Node"
+

@@ -1,0 +1,103 @@
+---
+# tasks file for k8s-master-node
+- name: "Installing docker"
+  package:
+      name: "docker"
+      state: present
+
+- name: "Enable The Service of Docker"
+  service:
+      name: docker
+      enabled: yes
+      state: started
+
+- name: "Configure yum Repository for K8S"
+  yum_repository:
+      name: "K8s_Repo"
+      description: "kubernetes repo to install kubectl,kubelet,kubeadm"
+      baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+      gpgcheck: yes
+      repo_gpgcheck: yes
+      enabled: yes
+      gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg
+              https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+- name: "Installing kubeadm, kubectl and kubelet"
+  yum:
+     name: "{{ item }}"
+     state: present
+     disable_excludes: kubernetes
+  loop: "{{ packages }}"
+
+- name: "Starting and Enabling the kubelet Services and docker Services"
+  service:
+     name: kubelet
+     state: started
+     enabled: yes
+
+- name: "Pulling Images"
+  command: "kubeadm config images pull"
+  changed_when: false
+
+- name: "Check cgroup Driver in docker"
+  shell: docker info | grep -i cgroup
+  register: driver_name
+
+- debug:
+     var: driver_name
+
+- name: "Changing Driver from cgroup to systemd in Docker"
+  copy:
+      content: |
+           {
+                   "exec-opts": ["native.cgroupdriver=systemd"]
+           }
+      dest: /etc/docker/daemon.json
+
+  register: driver_output
+
+- name: "Restart Docker Service"
+  service:
+      name: docker
+      state: restarted
+  when: driver_output.changed == true
+
+- name: "Installing iproute-tc"
+  package:
+     name: iproute-tc
+     state: present
+
+- name: "Setting bridge-nf-call-iptables to 1"
+  shell: |
+      echo "1" > /proc/sys/net/bridge/bridge-nf-call-iptables
+  changed_when: false
+
+- name: "Setting CIDR for network of Master"
+  shell: "kubeadm init --pod-network-cidr={{ cidr }} --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem --node-name=master"
+
+- name: "Creating .kube Directory"
+  file:
+      path: $HOME/.kube
+      state: directory
+
+- name: "Copying admin.conf file to $HOME/.kube/config Directory"
+  shell: "cp -i /etc/kubernetes/admin.conf $HOME/.kube/config"
+
+- name: "Changing Permission of config File"
+  shell: "sudo chown $(id -u):$(id -g) $HOME/.kube/config"
+
+- name: "Clearing Caches to Increase Ram"
+  shell: echo 3 > /proc/sys/vm/drop_caches
+
+- name: "Configure kube flannel"
+  shell: "kubectl apply  -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml"
+
+- name: "Creating Token"
+  shell: "kubeadm token create --print-join-command > /join.sh"
+  ignore_errors: yes
+
+- name: "Fetching the Join File to Controller Node"
+  fetch:
+       src: "/join.sh"
+       dest: "{{ dir }}/join.sh"
+

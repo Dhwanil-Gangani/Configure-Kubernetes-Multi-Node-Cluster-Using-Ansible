@@ -1,0 +1,9 @@
+---
+# vars file for k8s-master-node
+cidr: "10.244.0.0/16"
+packages:
+     - kubeadm
+     - kubelet
+     - kubectl
+dir: "/ansible/roles/k8s-cluster"
+

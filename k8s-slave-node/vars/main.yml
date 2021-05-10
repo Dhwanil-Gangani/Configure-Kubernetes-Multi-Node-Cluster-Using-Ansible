@@ -1,0 +1,9 @@
+---
+# vars file for k8s-slave-node
+packages:
+     - kubeadm
+     - kubelet
+     - kubectl
+join_file_location: "/ansible/roles/k8s-cluster/join.sh/"
+dest_join_location: "/home/ec2-user/"
+

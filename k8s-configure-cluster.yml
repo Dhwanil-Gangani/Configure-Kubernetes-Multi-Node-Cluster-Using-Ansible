@@ -1,0 +1,9 @@
+- hosts: ["tag_Name_Master_Node"]
+  roles:
+  - name: "Configure Kubernetes in Master Node"
+    role: "k8s-cluster/k8s-master-node"
+
+- hosts: ["tag_Name_Slave_Node"]
+  roles:
+  - name: "Configure Kubernetes in Slave Nodes"
+    role: "k8s-cluster/k8s-slave-node" 
